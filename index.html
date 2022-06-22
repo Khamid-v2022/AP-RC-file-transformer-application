@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title></title>
+	<!-- CSS only -->
+	<link href="./lib/bootstrap.min.css" rel="stylesheet">
+	<script src="./lib/jquery-3.6.0.min.js"></script>
+	<script src="./lib/FileSaver.min.js"></script>
+
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.13.5/xlsx.full.min.js"></script>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.13.5/jszip.js"></script>
+
+	<style type="text/css">
+		.container {
+			max-width: 550px;
+		}
+	</style>
+
+</head>
+<body>
+	<div class="container mt-5">
+		<div class="mb-3">
+			<label for="fileUpload" class="form-label">Select file</label>
+			<input class="form-control" type="file" id="fileUpload" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
+		</div>
+		<div class="mb-3">
+			<label for="export_type" class="form-label">Select Type</label>
+			<select id="export_type" class="form-select">
+				<option value="1">Accounts Payable</option>
+				<option value="2">Revenue Collections</option>
+                <option value="3">AP-GL</option>
+			</select>
+		</div>
+		<div class="">
+			<button class="btn btn-primary" type="button" onclick="DownloadFile()" >Convert</button>
+		</div>
+	</div>
+
+<script type="text/javascript">
+
+	function DownloadFile() {
+        //Reference the FileUpload element.
+        var fileUpload = document.getElementById("fileUpload");
+ 
+        //Validate whether File is valid Excel file.
+        var regex = /^([a-zA-Z0-9\s_\\.\-:])+(.xls|.xlsx)$/;
+        
+        if (regex.test(fileUpload.value.toLowerCase())) {
+        	var filename = fileUpload.files[0].name.split(".")[0];
+        	const date = new Date();
+        	const month = ('0' + (date.getMonth() + 1)).slice(-2);
+        	const day = ('0' + date.getDate()).slice(-2);
+        	filename += '-Reformat-' + date.getFullYear() + '-' + month + '-' + day;
+
+            if (typeof (FileReader) != "undefined") {
+                var reader = new FileReader();
+ 
+                //For Browsers other than IE.
+                if (reader.readAsBinaryString) {
+                    reader.onload = function (e) {
+                    	if($("#export_type").val() == 1)
+                        	GetAccountsFromExcel(e.target.result, filename);
+                        else if($("#export_type").val() == 2)
+                        	GetRevenueFromExcel(e.target.result, filename);
+                        else if($("#export_type").val() == 3)
+                            GetAPGLFromExcel(e.target.result, filename);
+                    };
+                    reader.readAsBinaryString(fileUpload.files[0]);
+                } else {
+                    //For IE Browser.
+                    reader.onload = function (e) {
+                        var data = "";
+                        var bytes = new Uint8Array(e.target.result);
+                        for (var i = 0; i < bytes.byteLength; i++) {
+                            data += String.fromCharCode(bytes[i]);
+                        }
+                        
+                        if($("#export_type").val() == 1)
+                        	GetAccountsFromExcel(data, filename);
+                        else if($("#export_type").val() == 2)
+                        	GetRevenueFromExcel(e.target.result, filename);
+                        else if($("#export_type").val() == 3)
+                            GetAPGLFromExcel(e.target.result, filename);
+                    };
+                    reader.readAsArrayBuffer(fileUpload.files[0]);
+                }
+            } else {
+                alert("This browser does not support HTML5.");
+            }
+        } else {
+            alert("Please upload a valid Excel file.");
+        }
+    };
+
+    function GetAccountsFromExcel(data, filename) {
+        //Read the Excel File data in binary
+        var workbook = XLSX.read(data, {
+            type: 'binary'
+        });
+ 
+        //get the name of First Sheet.
+        var Sheet = workbook.SheetNames[0];
+ 
+        //Read all rows from First Sheet into an JSON array.
+        var excelRows = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[Sheet]);
+ 
+ 		var file_content = '<ROOT>\n';
+
+        //Add the data rows from Excel file.
+        for (var i = 0; i < excelRows.length; i++) {
+
+        	file_content += '<accountsPayableInvoice';
+        	file_content += appendAttribute('number', excelRows[i].InvoiceNumber);
+        	file_content += appendAttribute('date', excelRows[i].Date);
+        	file_content += appendAttribute('description', excelRows[i].InvoiceDescription);
+        	file_content += appendAttribute('amount', excelRows[i].Amount);
+        	file_content += appendAttribute('freightAmount', excelRows[i].FreightAmount);
+        	file_content += appendAttribute('stateSalesTaxAmount', excelRows[i].StateSalesTaxAmount);
+        	file_content += appendAttribute('countySalesTaxAmount', excelRows[i].CountySalesTaxAmount);
+        	file_content += appendAttribute('citySalesTaxAmount', excelRows[i].CitySalesTaxAmount);
+        	file_content += appendAttribute('discountAmount', excelRows[i].DiscountAmount);
+        	file_content += appendAttribute('checkNumber', excelRows[i].CheckNumber);
+        	file_content += appendAttribute('receivedDate', excelRows[i].ReceivedDate);
+        	file_content += appendAttribute('checkSortCode', excelRows[i].CheckSortCode);
+        	file_content += appendAttribute('confirmingEFT', "false");
+        	file_content += appendAttribute('confirmingEFTGLDate', excelRows[i].ConfirmingEFTGLDate);
+        	file_content += appendAttribute('invoiceDueDate', excelRows[i].InvoiceDueDate);
+        	file_content += appendAttribute('remoteDocument', excelRows[i].RemoteDocument);
+        	file_content += '>';
+
+        	file_content += '\n<payee';
+        	file_content += appendAttribute('payeeName', excelRows[i].PayeeName);
+        	file_content += appendAttribute('payeeIDNumber', excelRows[i].VendorNbr);
+        	file_content += appendAttribute('payeeIDNumberType', "1");
+        	file_content += ' />';
+
+        	file_content += '\n<remittanceAddress';
+        	file_content += appendAttribute('addressLine1', excelRows[i].AddressLine1);
+        	file_content += appendAttribute('addressLine2', excelRows[i].AddressLine2);
+        	file_content += appendAttribute('addressLine3', excelRows[i].AddressLine3);
+        	file_content += appendAttribute('city', excelRows[i].City);
+        	file_content += appendAttribute('state', excelRows[i].State);
+        	file_content += appendAttribute('zip', excelRows[i].Zip);
+        	file_content += appendAttribute('vendorContactID', excelRows[i].VendorContactID);
+        	file_content += ' />';
+
+        	file_content += '\n<items>';
+        	file_content += '\n<item';
+        	file_content += appendAttribute('description', excelRows[i].ItemDesc);
+        	file_content += appendAttribute('quantity', "1");
+        	file_content += appendAttribute('unitOfMeasure', "EA");
+        	file_content += appendAttribute('pricePerUnit', excelRows[i].Amount);
+        	file_content += appendAttribute('applyFreight', "false");
+        	file_content += appendAttribute('applyTaxes', "false");
+        	file_content += appendAttribute('applyDiscounts', "false");
+        	file_content += appendAttribute('type1099', excelRows[i].Type1099);
+        	file_content += appendAttribute('box1099', excelRows[i].Box1099);
+        	file_content += appendAttribute('purchaseOrderNumber', excelRows[i].PurchaseOrderNumber);
+        	file_content += appendAttribute('itemDetailDescription', excelRows[i].ItemDetailDescription);
+        	file_content += appendAttribute('vendorPartNumber', excelRows[i].VendorPartNumber);
+        	file_content += '>';
+
+           	
+           	file_content += '\n<glDistributions>';
+           	file_content += '\n<glDistribution';
+           	file_content += appendAttribute('glAccount', excelRows[i].GLAccount.replace(/\D/g,''));
+           	file_content += appendAttribute('projectCode1', excelRows[i].ProjectCode1);
+           	file_content += appendAttribute('projectCode2', excelRows[i].ProjectCode2);
+           	file_content += appendAttribute('projectCode3', excelRows[i].ProjectCode3);
+           	file_content += appendAttribute('amount', "");
+           	file_content += ' />\n';
+           	file_content += '</glDistributions>\n';
+           	file_content += '</item>\n';
+           	file_content += '</items>\n';
+           	file_content += '</accountsPayableInvoice>\n\n';
+        }
+
+        file_content += '</ROOT>';
+        saveFile(file_content, filename);
+        alert(excelRows.length + " records converted");
+    };
+
+    function GetAPGLFromExcel(data, filename) {
+        //Read the Excel File data in binary
+        var workbook = XLSX.read(data, {
+            type: 'binary'
+        });
+ 
+        //get the name of First Sheet.
+        var Sheet = workbook.SheetNames[0];
+ 
+        //Read all rows from First Sheet into an JSON array.
+        var excelRows = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[Sheet]);
+ 
+        var file_content = '<ROOT>\n';
+
+        //Add the data rows from Excel file.
+        file_content += '<accountsPayableInvoice';
+        file_content += appendAttribute('number', excelRows[0].InvoiceNumber);
+        file_content += appendAttribute('date', "");
+        file_content += appendAttribute('description', excelRows[0].InvoiceDescription);
+        file_content += appendAttribute('amount', excelRows[0].Amount);
+        file_content += appendAttribute('freightAmount', "");
+        file_content += appendAttribute('stateSalesTaxAmount', "");
+        file_content += appendAttribute('countySalesTaxAmount', "");
+        file_content += appendAttribute('citySalesTaxAmount', "");
+        file_content += appendAttribute('discountAmount', "");
+        file_content += appendAttribute('checkNumber', "");
+        file_content += appendAttribute('receivedDate', "");
+        file_content += appendAttribute('checkSortCode', "");
+        file_content += appendAttribute('confirmingEFT', "false");
+        file_content += appendAttribute('confirmingEFTGLDate', "");
+        file_content += appendAttribute('invoiceDueDate', "");
+        file_content += appendAttribute('remoteDocument', "");
+        file_content += '>';
+
+        file_content += '\n<payee';
+        file_content += appendAttribute('payeeName', "");
+        file_content += appendAttribute('payeeIDNumber', excelRows[0].VendorNbr);
+        file_content += appendAttribute('payeeIDNumberType', "1");
+        file_content += ' />';
+
+        file_content += '\n<remittanceAddress';
+        file_content += appendAttribute('addressLine1', "");
+        file_content += appendAttribute('addressLine2', "");
+        file_content += appendAttribute('addressLine3', "");
+        file_content += appendAttribute('city', "");
+        file_content += appendAttribute('state', "");
+        file_content += appendAttribute('zip', "");
+        file_content += appendAttribute('vendorContactID', "");
+        file_content += ' />';
+
+        file_content += '\n<items>';
+        file_content += '\n<item';
+        file_content += appendAttribute('description', excelRows[0].ItemDesc);
+        file_content += appendAttribute('quantity', "1");
+        file_content += appendAttribute('unitOfMeasure', "EA");
+        file_content += appendAttribute('pricePerUnit', excelRows[0].Amount);
+        file_content += appendAttribute('applyFreight', "false");
+        file_content += appendAttribute('applyTaxes', "false");
+        file_content += appendAttribute('applyDiscounts', "false");
+        file_content += appendAttribute('type1099', "");
+        file_content += appendAttribute('box1099', "");
+        file_content += appendAttribute('purchaseOrderNumber', "");
+        file_content += appendAttribute('itemDetailDescription', "");
+        file_content += appendAttribute('vendorPartNumber', "");
+        file_content += '>';
+
+        file_content += '\n<glDistributions>';
+        for (var i = 0; i < excelRows.length; i++) {
+            
+            
+            file_content += '\n<glDistribution';
+            file_content += appendAttribute('glAccount', excelRows[i].GLAccount.replace(/\D/g,''));
+            file_content += appendAttribute('projectCode1', excelRows[i].ProjectCode1);
+            file_content += appendAttribute('projectCode2', excelRows[i].ProjectCode2);
+            file_content += appendAttribute('projectCode3', excelRows[i].ProjectCode3);
+            file_content += appendAttribute('amount', excelRows[i].SplitAmount);
+            file_content += ' />\n';
+            
+        }
+
+        file_content += '</glDistributions>\n';
+        file_content += '</item>\n';
+        file_content += '</items>\n';
+        file_content += '</accountsPayableInvoice>\n\n';
+
+        file_content += '</ROOT>';
+        saveFile(file_content, filename);
+        alert(excelRows.length + " records converted");
+    };
+
+    function GetRevenueFromExcel(data, filename) {
+        //Read the Excel File data in binary
+        var workbook = XLSX.read(data, {
+            type: 'binary'
+        });
+ 
+        //get the name of First Sheet.
+        var Sheet = workbook.SheetNames[0];
+ 
+        //Read all rows from First Sheet into an JSON array.
+        var excelRows = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[Sheet]);
+ 
+ 		var file_content = '<ROOT>\n';
+
+        //Add the data rows from Excel file.
+        for (var i = 0; i < excelRows.length; i++) {
+
+        	file_content += '<ReceiptHeaderLevel';
+        	file_content += appendAttribute('ReceiptNumber', "");
+        	file_content += appendAttribute('VoidedFlag', "0");
+        	file_content += appendAttribute('PaymentEnteredDate', "");
+        	file_content += appendAttribute('PaymentRecordedDate', "");
+        	file_content += appendAttribute('PaymentGLDate', excelRows[i].GLDate);
+        	file_content += appendAttribute('ReceivedFromName', excelRows[i].ReceivedFromName);
+        	file_content += appendAttribute('ReceiptDescription', excelRows[i].ReceiptDescription);
+        	file_content += appendAttribute('ReceiptCashier', "");
+        	file_content += '>';
+
+        	file_content += '\n<ReceiptTransactionLevel';
+        	file_content += appendAttribute('ReceiptTransactionType', excelRows[i].PaymentCode);
+        	file_content += appendAttribute('ReceiptTransactionAmount', excelRows[i].Amount);
+        	file_content += appendAttribute('ReceiptTransactionDescription', excelRows[i].TransactionDescription);
+        	file_content += appendAttribute('ReceiptTransactionARCustomerNumber', "");
+        	file_content += appendAttribute('ReceiptTransactionARBillType', "");
+        	file_content += appendAttribute('ReceiptTransactionARBillNumber', "");
+        	file_content += appendAttribute('ReceiptTransactionLicenseeNumber', "");
+        	file_content += appendAttribute('ReceiptTransactionLicenseType', "");
+        	file_content += appendAttribute('ReceiptTransactionLicenseNumber', "");
+        	file_content += appendAttribute('ReceiptTransactionLicenseNumberID', "");
+        	file_content += appendAttribute('ReceiptTransactionLicenseRenewalNumber', "");
+        	file_content += appendAttribute('ReceiptTransactionLicenseRenewalNumberID', "");
+        	file_content += appendAttribute('ReceiptTransactionProjectCode1', excelRows[i].ProjectCode1);
+        	file_content += appendAttribute('ReceiptTransactionProjectCode2', excelRows[i].ProjectCode2);
+        	file_content += appendAttribute('ReceiptTransactionProjectCode3', excelRows[i].ProjectCode3);
+        	file_content += ' >';
+
+        	file_content += '\n<ReceiptTransactionGLDistributionLevel';
+        	file_content += appendAttribute('GLAccountNumber', "");
+        	file_content += appendAttribute('DueToDueFromFund', "");
+        	file_content += appendAttribute('ProjectCode1', "");
+        	file_content += appendAttribute('ProjectCode2', "");
+        	file_content += appendAttribute('ProjectCode3', "");
+        	file_content += appendAttribute('DistributionAmount', excelRows[i].Amount);
+        	file_content += appendAttribute('DistributionType', "");
+        	file_content += ' />';
+        	file_content += '\n</ReceiptTransactionLevel>';
+
+        	file_content += '\n<ReceiptPaymentLevel';
+        	file_content += appendAttribute('ReceiptPaymentType', excelRows[i].PaymentType);
+        	file_content += appendAttribute('ReceiptPaymentAmount', excelRows[i].Amount);
+        	file_content += appendAttribute('ReceiptPaymentCheckNumber', excelRows[i].CheckNumber);
+        	file_content += appendAttribute('ReceiptPaymentCreditCardNumber', "");
+        	file_content += appendAttribute('ReceiptPaymentCreditCardType', "");
+        	file_content += appendAttribute('ReceiptPaymentCreditCardExpirationDate', "");
+        	file_content += appendAttribute('ReceiptPaymentCreditCardValidationNumber', "");
+        	file_content += ' />\n';
+
+           	file_content += '</ReceiptHeaderLevel>\n';
+        }
+
+        file_content += '</ROOT>';
+        saveFile(file_content, filename);
+        alert(excelRows.length + " records converted");
+    };
+
+    function appendAttribute(attributeName, value, isBoolean = false){
+
+    	if(value == undefined){
+    		if(isBoolean)
+    			value = "false";
+    		else
+    			value = "";
+    	}
+
+    	return '\n' + attributeName + '="' + value + '"';
+    }
+
+	function saveFile(content, file_name){
+		var myFile = new File([content], file_name, {type: "text/xml"});
+		saveAs(myFile);
+
+		document.getElementById("fileUpload").value = "";
+	}
+
+</script>
+</body>
+</html>
