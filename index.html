@@ -287,18 +287,42 @@
  		var file_content = '<ROOT>\n';
 
         //Add the data rows from Excel file.
-        for (var i = 0; i < excelRows.length; i++) {
 
-        	file_content += '<ReceiptHeaderLevel';
-        	file_content += appendAttribute('ReceiptNumber', "");
-        	file_content += appendAttribute('VoidedFlag', "0");
-        	file_content += appendAttribute('PaymentEnteredDate', "");
-        	file_content += appendAttribute('PaymentRecordedDate', "");
-        	file_content += appendAttribute('PaymentGLDate', excelRows[i].GLDate);
-        	file_content += appendAttribute('ReceivedFromName', excelRows[i].ReceivedFromName);
-        	file_content += appendAttribute('ReceiptDescription', excelRows[i].ReceiptDescription);
-        	file_content += appendAttribute('ReceiptCashier', "");
-        	file_content += '>';
+        var previous_group = "";
+        var previous_paymentType = "";
+        var previous_checkNumber = "";
+        var group_total_amount = 0;
+
+        for (var i = 0; i < excelRows.length; i++) {
+            
+            if((i != 0 && !excelRows[i].Group) || (i != 0 && excelRows[i].Group && excelRows[i].Group != previous_group)){
+                file_content += '\n<ReceiptPaymentLevel';
+                file_content += appendAttribute('ReceiptPaymentType', previous_paymentType);
+                file_content += appendAttribute('ReceiptPaymentAmount', group_total_amount);
+                file_content += appendAttribute('ReceiptPaymentCheckNumber', previous_checkNumber);
+                file_content += appendAttribute('ReceiptPaymentCreditCardNumber', "");
+                file_content += appendAttribute('ReceiptPaymentCreditCardType', "");
+                file_content += appendAttribute('ReceiptPaymentCreditCardExpirationDate', "");
+                file_content += appendAttribute('ReceiptPaymentCreditCardValidationNumber', "");
+                file_content += ' />\n';
+
+                file_content += '</ReceiptHeaderLevel>\n';
+
+                group_total_amount = 0;
+            }
+
+        	if( i == 0 || !excelRows[i].Group || (excelRows[i].Group && excelRows[i].Group != previous_group)){
+                file_content += '\n<ReceiptHeaderLevel';
+            	file_content += appendAttribute('ReceiptNumber', "");
+            	file_content += appendAttribute('VoidedFlag', "0");
+            	file_content += appendAttribute('PaymentEnteredDate', "");
+            	file_content += appendAttribute('PaymentRecordedDate', "");
+            	file_content += appendAttribute('PaymentGLDate', excelRows[i].GLDate);
+            	file_content += appendAttribute('ReceivedFromName', excelRows[i].ReceivedFromName);
+            	file_content += appendAttribute('ReceiptDescription', excelRows[i].ReceiptDescription);
+            	file_content += appendAttribute('ReceiptCashier', "");
+            	file_content += '>';
+            }
 
         	file_content += '\n<ReceiptTransactionLevel';
         	file_content += appendAttribute('ReceiptTransactionType', excelRows[i].PaymentCode);
@@ -329,18 +353,26 @@
         	file_content += ' />';
         	file_content += '\n</ReceiptTransactionLevel>';
 
-        	file_content += '\n<ReceiptPaymentLevel';
-        	file_content += appendAttribute('ReceiptPaymentType', excelRows[i].PaymentType);
-        	file_content += appendAttribute('ReceiptPaymentAmount', excelRows[i].Amount);
-        	file_content += appendAttribute('ReceiptPaymentCheckNumber', excelRows[i].CheckNumber);
-        	file_content += appendAttribute('ReceiptPaymentCreditCardNumber', "");
-        	file_content += appendAttribute('ReceiptPaymentCreditCardType', "");
-        	file_content += appendAttribute('ReceiptPaymentCreditCardExpirationDate', "");
-        	file_content += appendAttribute('ReceiptPaymentCreditCardValidationNumber', "");
-        	file_content += ' />\n';
 
-           	file_content += '</ReceiptHeaderLevel>\n';
+            previous_group = excelRows[i].Group;
+            previous_paymentType = excelRows[i].PaymentType;
+            group_total_amount = group_total_amount + parseFloat(excelRows[i].Amount);
+            previous_checkNumber = excelRows[i].CheckNumber;
+
+        
         }
+
+        file_content += '\n<ReceiptPaymentLevel';
+        file_content += appendAttribute('ReceiptPaymentType', previous_paymentType);
+        file_content += appendAttribute('ReceiptPaymentAmount', group_total_amount);
+        file_content += appendAttribute('ReceiptPaymentCheckNumber', previous_checkNumber);
+        file_content += appendAttribute('ReceiptPaymentCreditCardNumber', "");
+        file_content += appendAttribute('ReceiptPaymentCreditCardType', "");
+        file_content += appendAttribute('ReceiptPaymentCreditCardExpirationDate', "");
+        file_content += appendAttribute('ReceiptPaymentCreditCardValidationNumber', "");
+        file_content += ' />\n';
+
+        file_content += '</ReceiptHeaderLevel>\n';
 
         file_content += '</ROOT>';
         saveFile(file_content, filename);
