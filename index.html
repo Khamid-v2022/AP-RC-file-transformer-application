@@ -165,7 +165,10 @@
            	
            	file_content += '\n<glDistributions>';
            	file_content += '\n<glDistribution';
-           	file_content += appendAttribute('glAccount', excelRows[i].GLAccount.replace(/\D/g,''));
+            var glAccount = '';
+            if(excelRows[i].GLAccount != undefined)
+                glAccount = excelRows[i].GLAccount.replace(/\D/g,'')
+           	file_content += appendAttribute('glAccount', glAccount);
            	file_content += appendAttribute('projectCode1', excelRows[i].ProjectCode1);
            	file_content += appendAttribute('projectCode2', excelRows[i].ProjectCode2);
            	file_content += appendAttribute('projectCode3', excelRows[i].ProjectCode3);
@@ -293,72 +296,76 @@
         var previous_checkNumber = "";
         var group_total_amount = 0;
 
+        var group_start = 0;
+
         for (var i = 0; i < excelRows.length; i++) {
+            if(parseFloat(excelRows[i].Amount) != 0){
+                if((group_start != 0 && !excelRows[i].Group) || (group_start != 0 && excelRows[i].Group && excelRows[i].Group != previous_group)){
+                    file_content += '\n<ReceiptPaymentLevel';
+                    file_content += appendAttribute('ReceiptPaymentType', previous_paymentType);
+                    file_content += appendAttribute('ReceiptPaymentAmount', group_total_amount);
+                    file_content += appendAttribute('ReceiptPaymentCheckNumber', previous_checkNumber);
+                    file_content += appendAttribute('ReceiptPaymentCreditCardNumber', "");
+                    file_content += appendAttribute('ReceiptPaymentCreditCardType', "");
+                    file_content += appendAttribute('ReceiptPaymentCreditCardExpirationDate', "");
+                    file_content += appendAttribute('ReceiptPaymentCreditCardValidationNumber', "");
+                    file_content += ' />\n';
+
+                    file_content += '</ReceiptHeaderLevel>\n';
+
+                    group_total_amount = 0;
+                }
+
             
-            if((i != 0 && !excelRows[i].Group) || (i != 0 && excelRows[i].Group && excelRows[i].Group != previous_group)){
-                file_content += '\n<ReceiptPaymentLevel';
-                file_content += appendAttribute('ReceiptPaymentType', previous_paymentType);
-                file_content += appendAttribute('ReceiptPaymentAmount', group_total_amount);
-                file_content += appendAttribute('ReceiptPaymentCheckNumber', previous_checkNumber);
-                file_content += appendAttribute('ReceiptPaymentCreditCardNumber', "");
-                file_content += appendAttribute('ReceiptPaymentCreditCardType', "");
-                file_content += appendAttribute('ReceiptPaymentCreditCardExpirationDate', "");
-                file_content += appendAttribute('ReceiptPaymentCreditCardValidationNumber', "");
-                file_content += ' />\n';
+                group_start++;
+            	if( group_start == 0 || !excelRows[i].Group || (excelRows[i].Group && excelRows[i].Group != previous_group)){
+                    file_content += '\n<ReceiptHeaderLevel';
+                	file_content += appendAttribute('ReceiptNumber', "");
+                	file_content += appendAttribute('VoidedFlag', "0");
+                	file_content += appendAttribute('PaymentEnteredDate', "");
+                	file_content += appendAttribute('PaymentRecordedDate', "");
+                	file_content += appendAttribute('PaymentGLDate', excelRows[i].GLDate);
+                	file_content += appendAttribute('ReceivedFromName', excelRows[i].ReceivedFromName);
+                	file_content += appendAttribute('ReceiptDescription', excelRows[i].ReceiptDescription);
+                	file_content += appendAttribute('ReceiptCashier', "");
+                	file_content += '>';
+                }
 
-                file_content += '</ReceiptHeaderLevel>\n';
+            	file_content += '\n<ReceiptTransactionLevel';
+            	file_content += appendAttribute('ReceiptTransactionType', excelRows[i].PaymentCode);
+            	file_content += appendAttribute('ReceiptTransactionAmount', excelRows[i].Amount);
+            	file_content += appendAttribute('ReceiptTransactionDescription', excelRows[i].TransactionDescription);
+            	file_content += appendAttribute('ReceiptTransactionARCustomerNumber', "");
+            	file_content += appendAttribute('ReceiptTransactionARBillType', "");
+            	file_content += appendAttribute('ReceiptTransactionARBillNumber', "");
+            	file_content += appendAttribute('ReceiptTransactionLicenseeNumber', "");
+            	file_content += appendAttribute('ReceiptTransactionLicenseType', "");
+            	file_content += appendAttribute('ReceiptTransactionLicenseNumber', "");
+            	file_content += appendAttribute('ReceiptTransactionLicenseNumberID', "");
+            	file_content += appendAttribute('ReceiptTransactionLicenseRenewalNumber', "");
+            	file_content += appendAttribute('ReceiptTransactionLicenseRenewalNumberID', "");
+            	file_content += appendAttribute('ReceiptTransactionProjectCode1', excelRows[i].ProjectCode1);
+            	file_content += appendAttribute('ReceiptTransactionProjectCode2', excelRows[i].ProjectCode2);
+            	file_content += appendAttribute('ReceiptTransactionProjectCode3', excelRows[i].ProjectCode3);
+            	file_content += ' >';
 
-                group_total_amount = 0;
+            	file_content += '\n<ReceiptTransactionGLDistributionLevel';
+            	file_content += appendAttribute('GLAccountNumber', "");
+            	file_content += appendAttribute('DueToDueFromFund', "");
+            	file_content += appendAttribute('ProjectCode1', "");
+            	file_content += appendAttribute('ProjectCode2', "");
+            	file_content += appendAttribute('ProjectCode3', "");
+            	file_content += appendAttribute('DistributionAmount', excelRows[i].Amount);
+            	file_content += appendAttribute('DistributionType', "");
+            	file_content += ' />';
+            	file_content += '\n</ReceiptTransactionLevel>';
+
+
+                previous_group = excelRows[i].Group;
+                previous_paymentType = excelRows[i].PaymentType;
+                group_total_amount = group_total_amount + parseFloat(excelRows[i].Amount);
+                previous_checkNumber = excelRows[i].CheckNumber;
             }
-
-        	if( i == 0 || !excelRows[i].Group || (excelRows[i].Group && excelRows[i].Group != previous_group)){
-                file_content += '\n<ReceiptHeaderLevel';
-            	file_content += appendAttribute('ReceiptNumber', "");
-            	file_content += appendAttribute('VoidedFlag', "0");
-            	file_content += appendAttribute('PaymentEnteredDate', "");
-            	file_content += appendAttribute('PaymentRecordedDate', "");
-            	file_content += appendAttribute('PaymentGLDate', excelRows[i].GLDate);
-            	file_content += appendAttribute('ReceivedFromName', excelRows[i].ReceivedFromName);
-            	file_content += appendAttribute('ReceiptDescription', excelRows[i].ReceiptDescription);
-            	file_content += appendAttribute('ReceiptCashier', "");
-            	file_content += '>';
-            }
-
-        	file_content += '\n<ReceiptTransactionLevel';
-        	file_content += appendAttribute('ReceiptTransactionType', excelRows[i].PaymentCode);
-        	file_content += appendAttribute('ReceiptTransactionAmount', excelRows[i].Amount);
-        	file_content += appendAttribute('ReceiptTransactionDescription', excelRows[i].TransactionDescription);
-        	file_content += appendAttribute('ReceiptTransactionARCustomerNumber', "");
-        	file_content += appendAttribute('ReceiptTransactionARBillType', "");
-        	file_content += appendAttribute('ReceiptTransactionARBillNumber', "");
-        	file_content += appendAttribute('ReceiptTransactionLicenseeNumber', "");
-        	file_content += appendAttribute('ReceiptTransactionLicenseType', "");
-        	file_content += appendAttribute('ReceiptTransactionLicenseNumber', "");
-        	file_content += appendAttribute('ReceiptTransactionLicenseNumberID', "");
-        	file_content += appendAttribute('ReceiptTransactionLicenseRenewalNumber', "");
-        	file_content += appendAttribute('ReceiptTransactionLicenseRenewalNumberID', "");
-        	file_content += appendAttribute('ReceiptTransactionProjectCode1', excelRows[i].ProjectCode1);
-        	file_content += appendAttribute('ReceiptTransactionProjectCode2', excelRows[i].ProjectCode2);
-        	file_content += appendAttribute('ReceiptTransactionProjectCode3', excelRows[i].ProjectCode3);
-        	file_content += ' >';
-
-        	file_content += '\n<ReceiptTransactionGLDistributionLevel';
-        	file_content += appendAttribute('GLAccountNumber', "");
-        	file_content += appendAttribute('DueToDueFromFund', "");
-        	file_content += appendAttribute('ProjectCode1', "");
-        	file_content += appendAttribute('ProjectCode2', "");
-        	file_content += appendAttribute('ProjectCode3', "");
-        	file_content += appendAttribute('DistributionAmount', excelRows[i].Amount);
-        	file_content += appendAttribute('DistributionType', "");
-        	file_content += ' />';
-        	file_content += '\n</ReceiptTransactionLevel>';
-
-
-            previous_group = excelRows[i].Group;
-            previous_paymentType = excelRows[i].PaymentType;
-            group_total_amount = group_total_amount + parseFloat(excelRows[i].Amount);
-            previous_checkNumber = excelRows[i].CheckNumber;
-
         
         }
 
